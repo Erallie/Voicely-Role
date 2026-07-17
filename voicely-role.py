@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent
 DATABASE_PATH = BASE_DIR / "voicely-role.db"
 DEFAULT_MESSAGE = "🔊 {role} There are now **{count} people** in {channel}!"
+DEFAULT_ENDED_MESSAGE = "🔇 Everyone has left {channel}."
 MAX_CUSTOM_MESSAGE_LENGTH = 1500
 
 logging.basicConfig(
@@ -35,6 +36,7 @@ class Notification:
     role_id: int
     destination_channel_id: int
     message_template: str
+    ended_message_template: str
 
 
 class Database:
@@ -56,7 +58,8 @@ class Database:
                     threshold INTEGER NOT NULL CHECK (threshold >= 1),
                     role_id INTEGER NOT NULL,
                     destination_channel_id INTEGER NOT NULL,
-                    message_template TEXT NOT NULL
+                    message_template TEXT NOT NULL,
+                    ended_message_template TEXT NOT NULL DEFAULT '🔇 Everyone has left {channel}.'
                 );
 
                 CREATE TABLE IF NOT EXISTS notification_voice_channels (
@@ -72,6 +75,7 @@ class Database:
                     notification_id INTEGER NOT NULL,
                     voice_channel_id INTEGER NOT NULL,
                     triggered INTEGER NOT NULL DEFAULT 0,
+                    message_id INTEGER,
                     PRIMARY KEY (notification_id, voice_channel_id),
                     FOREIGN KEY (notification_id, voice_channel_id)
                         REFERENCES notification_voice_channels(
@@ -100,6 +104,33 @@ class Database:
                     ON notification_voice_channels(voice_channel_id);
                 """
             )
+
+            notification_columns = {
+                str(row["name"])
+                for row in self.connection.execute(
+                    "PRAGMA table_info(notifications)"
+                ).fetchall()
+            }
+            if "ended_message_template" not in notification_columns:
+                self.connection.execute(
+                    """
+                    ALTER TABLE notifications
+                    ADD COLUMN ended_message_template TEXT NOT NULL
+                    DEFAULT '🔇 Everyone has left {channel}.'
+                    """
+                )
+
+            trigger_state_columns = {
+                str(row["name"])
+                for row in self.connection.execute(
+                    "PRAGMA table_info(trigger_states)"
+                ).fetchall()
+            }
+            if "message_id" not in trigger_state_columns:
+                self.connection.execute(
+                    "ALTER TABLE trigger_states ADD COLUMN message_id INTEGER"
+                )
+
             self.connection.commit()
 
     async def create_notification(
@@ -110,6 +141,7 @@ class Database:
         role_id: int,
         destination_channel_id: int,
         message_template: str,
+        ended_message_template: str,
         voice_channel_ids: Iterable[int],
     ) -> int:
         channel_ids = list(dict.fromkeys(voice_channel_ids))
@@ -122,8 +154,9 @@ class Database:
                     threshold,
                     role_id,
                     destination_channel_id,
-                    message_template
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    message_template,
+                    ended_message_template
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     guild_id,
@@ -132,6 +165,7 @@ class Database:
                     role_id,
                     destination_channel_id,
                     message_template,
+                    ended_message_template,
                 ),
             )
             notification_id = int(cursor.lastrowid)
@@ -204,11 +238,11 @@ class Database:
         self,
         guild_id: int,
         voice_channel_id: int,
-    ) -> list[tuple[Notification, bool]]:
+    ) -> list[tuple[Notification, bool, int | None]]:
         async with self.lock:
             rows = self.connection.execute(
                 """
-                SELECT n.*, s.triggered
+                SELECT n.*, s.triggered, s.message_id
                 FROM notifications AS n
                 JOIN notification_voice_channels AS c
                     ON c.notification_id = n.id
@@ -223,7 +257,11 @@ class Database:
             ).fetchall()
 
         return [
-            (self._notification_from_row(row), bool(row["triggered"]))
+            (
+                self._notification_from_row(row),
+                bool(row["triggered"]),
+                int(row["message_id"]) if row["message_id"] is not None else None,
+            )
             for row in rows
         ]
 
@@ -244,6 +282,39 @@ class Database:
             )
             self.connection.commit()
 
+    async def set_message_id(
+        self,
+        notification_id: int,
+        voice_channel_id: int,
+        message_id: int | None,
+    ) -> None:
+        async with self.lock:
+            self.connection.execute(
+                """
+                UPDATE trigger_states
+                SET message_id = ?
+                WHERE notification_id = ? AND voice_channel_id = ?
+                """,
+                (message_id, notification_id, voice_channel_id),
+            )
+            self.connection.commit()
+
+    async def clear_trigger_state(
+        self,
+        notification_id: int,
+        voice_channel_id: int,
+    ) -> None:
+        async with self.lock:
+            self.connection.execute(
+                """
+                UPDATE trigger_states
+                SET triggered = 0, message_id = NULL
+                WHERE notification_id = ? AND voice_channel_id = ?
+                """,
+                (notification_id, voice_channel_id),
+            )
+            self.connection.commit()
+
     async def delete_notification(self, guild_id: int, notification_id: int) -> bool:
         async with self.lock:
             cursor = self.connection.execute(
@@ -256,20 +327,62 @@ class Database:
             self.connection.commit()
             return cursor.rowcount > 0
 
-    async def update_message(
+    async def update_messages(
         self,
         guild_id: int,
         notification_id: int,
         message_template: str,
+        ended_message_template: str,
     ) -> bool:
         async with self.lock:
             cursor = self.connection.execute(
                 """
                 UPDATE notifications
-                SET message_template = ?
+                SET message_template = ?, ended_message_template = ?
                 WHERE guild_id = ? AND id = ?
                 """,
-                (message_template, guild_id, notification_id),
+                (
+                    message_template,
+                    ended_message_template,
+                    guild_id,
+                    notification_id,
+                ),
+            )
+            self.connection.commit()
+            return cursor.rowcount > 0
+
+    async def get_excluded_user_ids(self, guild_id: int) -> set[int]:
+        async with self.lock:
+            rows = self.connection.execute(
+                """
+                SELECT user_id
+                FROM excluded_users
+                WHERE guild_id = ?
+                """,
+                (guild_id,),
+            ).fetchall()
+        return {int(row["user_id"]) for row in rows}
+
+    async def exclude_user(self, guild_id: int, user_id: int) -> bool:
+        async with self.lock:
+            cursor = self.connection.execute(
+                """
+                INSERT OR IGNORE INTO excluded_users (guild_id, user_id)
+                VALUES (?, ?)
+                """,
+                (guild_id, user_id),
+            )
+            self.connection.commit()
+            return cursor.rowcount > 0
+
+    async def include_user(self, guild_id: int, user_id: int) -> bool:
+        async with self.lock:
+            cursor = self.connection.execute(
+                """
+                DELETE FROM excluded_users
+                WHERE guild_id = ? AND user_id = ?
+                """,
+                (guild_id, user_id),
             )
             self.connection.commit()
             return cursor.rowcount > 0
@@ -302,43 +415,6 @@ class Database:
             )
             self.connection.commit()
 
-    async def get_excluded_user_ids(self, guild_id: int) -> set[int]:
-        async with self.lock:
-            rows = self.connection.execute(
-                """
-                SELECT user_id
-                FROM excluded_users
-                WHERE guild_id = ?
-                ORDER BY user_id
-                """,
-                (guild_id,),
-            ).fetchall()
-        return {int(row["user_id"]) for row in rows}
-
-    async def add_excluded_user(self, guild_id: int, user_id: int) -> bool:
-        async with self.lock:
-            cursor = self.connection.execute(
-                """
-                INSERT OR IGNORE INTO excluded_users (guild_id, user_id)
-                VALUES (?, ?)
-                """,
-                (guild_id, user_id),
-            )
-            self.connection.commit()
-            return cursor.rowcount > 0
-
-    async def remove_excluded_user(self, guild_id: int, user_id: int) -> bool:
-        async with self.lock:
-            cursor = self.connection.execute(
-                """
-                DELETE FROM excluded_users
-                WHERE guild_id = ? AND user_id = ?
-                """,
-                (guild_id, user_id),
-            )
-            self.connection.commit()
-            return cursor.rowcount > 0
-
     async def remove_guild(self, guild_id: int) -> None:
         async with self.lock:
             self.connection.execute(
@@ -365,6 +441,7 @@ class Database:
             role_id=int(row["role_id"]),
             destination_channel_id=int(row["destination_channel_id"]),
             message_template=str(row["message_template"]),
+            ended_message_template=str(row["ended_message_template"]),
         )
 
 
@@ -395,8 +472,15 @@ class NotificationDetailsModal(discord.ui.Modal, title="Notification details"):
         max_length=3,
     )
     message = discord.ui.TextInput(
-        label="Custom message (optional)",
+        label="Active message (optional)",
         placeholder=DEFAULT_MESSAGE,
+        style=discord.TextStyle.paragraph,
+        required=False,
+        max_length=MAX_CUSTOM_MESSAGE_LENGTH,
+    )
+    ended_message = discord.ui.TextInput(
+        label="Message when everyone leaves (optional)",
+        placeholder=DEFAULT_ENDED_MESSAGE,
         style=discord.TextStyle.paragraph,
         required=False,
         max_length=MAX_CUSTOM_MESSAGE_LENGTH,
@@ -411,6 +495,8 @@ class NotificationDetailsModal(discord.ui.Modal, title="Notification details"):
             self.threshold.default = str(setup_view.threshold_value)
         if setup_view.message_value != DEFAULT_MESSAGE:
             self.message.default = setup_view.message_value
+        if setup_view.ended_message_value != DEFAULT_ENDED_MESSAGE:
+            self.ended_message.default = setup_view.ended_message_value
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         try:
@@ -430,7 +516,13 @@ class NotificationDetailsModal(discord.ui.Modal, title="Notification details"):
             return
 
         message = str(self.message.value).strip() or DEFAULT_MESSAGE
-        unknown_placeholders = find_unknown_placeholders(message)
+        ended_message = (
+            str(self.ended_message.value).strip() or DEFAULT_ENDED_MESSAGE
+        )
+        unknown_placeholders = (
+            find_unknown_placeholders(message)
+            | find_unknown_placeholders(ended_message)
+        )
         if unknown_placeholders:
             formatted = ", ".join(f"`{{{item}}}`" for item in unknown_placeholders)
             await interaction.response.send_message(
@@ -442,6 +534,7 @@ class NotificationDetailsModal(discord.ui.Modal, title="Notification details"):
         self.setup_view.name_value = str(self.name.value).strip()
         self.setup_view.threshold_value = threshold
         self.setup_view.message_value = message
+        self.setup_view.ended_message_value = ended_message
         await interaction.response.edit_message(
             content=self.setup_view.summary(),
             view=self.setup_view,
@@ -542,6 +635,7 @@ class AddNotificationView(RestrictedView):
         self.name_value = ""
         self.threshold_value: int | None = None
         self.message_value = DEFAULT_MESSAGE
+        self.ended_message_value = DEFAULT_ENDED_MESSAGE
         self.destination_page = 0
         self.accessible_text_channels = [
             channel
@@ -712,15 +806,15 @@ class AddNotificationView(RestrictedView):
             role_id=self.role_id,
             destination_channel_id=self.destination_channel_id,
             message_template=self.message_value,
+            ended_message_template=self.ended_message_value,
             voice_channel_ids=self.voice_channel_ids,
         )
 
-        excluded_user_ids = await self.database.get_excluded_user_ids(self.guild.id)
         for voice_channel_id in self.voice_channel_ids:
             voice_channel = self.guild.get_channel(voice_channel_id)
             if not isinstance(voice_channel, discord.VoiceChannel):
                 continue
-            count = human_count(voice_channel, excluded_user_ids)
+            count = await counted_human_count(voice_channel, self.database)
             if count >= self.threshold_value:
                 await self.database.set_triggered(
                     notification_id,
@@ -946,13 +1040,20 @@ class RemoveNotificationView(NotificationPagedView):
         )
 
 
-class EditMessageModal(discord.ui.Modal, title="Edit notification message"):
+class EditMessageModal(discord.ui.Modal, title="Edit notification messages"):
     message = discord.ui.TextInput(
-        label="Custom message",
+        label="Active message",
         style=discord.TextStyle.paragraph,
         max_length=MAX_CUSTOM_MESSAGE_LENGTH,
         required=False,
         placeholder=DEFAULT_MESSAGE,
+    )
+    ended_message = discord.ui.TextInput(
+        label="Message when everyone leaves",
+        style=discord.TextStyle.paragraph,
+        max_length=MAX_CUSTOM_MESSAGE_LENGTH,
+        required=False,
+        placeholder=DEFAULT_ENDED_MESSAGE,
     )
 
     def __init__(
@@ -966,10 +1067,17 @@ class EditMessageModal(discord.ui.Modal, title="Edit notification message"):
         self.guild_id = guild_id
         self.notification = notification
         self.message.default = notification.message_template
+        self.ended_message.default = notification.ended_message_template
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         message = str(self.message.value).strip() or DEFAULT_MESSAGE
-        unknown_placeholders = find_unknown_placeholders(message)
+        ended_message = (
+            str(self.ended_message.value).strip() or DEFAULT_ENDED_MESSAGE
+        )
+        unknown_placeholders = (
+            find_unknown_placeholders(message)
+            | find_unknown_placeholders(ended_message)
+        )
         if unknown_placeholders:
             formatted = ", ".join(f"`{{{item}}}`" for item in unknown_placeholders)
             await interaction.response.send_message(
@@ -978,14 +1086,15 @@ class EditMessageModal(discord.ui.Modal, title="Edit notification message"):
             )
             return
 
-        updated = await self.database.update_message(
+        updated = await self.database.update_messages(
             self.guild_id,
             self.notification.id,
             message,
+            ended_message,
         )
         await interaction.response.edit_message(
             content=(
-                f"✅ Updated the message for "
+                f"✅ Updated the messages for "
                 f"**{discord.utils.escape_markdown(self.notification.name)}**."
                 if updated
                 else "That notification no longer exists."
@@ -1080,59 +1189,118 @@ class VoicelyRoleBot(commands.Bot):
 
     async def reconcile_all_trigger_states(self) -> None:
         for guild in self.guilds:
-            await self.reconcile_guild_trigger_states(guild)
-
-    async def reconcile_guild_trigger_states(self, guild: discord.Guild) -> None:
-        excluded_user_ids = await self.database.get_excluded_user_ids(guild.id)
-        notifications = await self.database.get_notifications(guild.id)
-        for notification in notifications:
-            channel_ids = await self.database.get_voice_channel_ids(notification.id)
-            for channel_id in channel_ids:
-                channel = guild.get_channel(channel_id)
-                if not isinstance(channel, discord.VoiceChannel):
-                    continue
-                count = human_count(channel, excluded_user_ids)
-                await self.database.set_triggered(
-                    notification.id,
-                    channel.id,
-                    count >= notification.threshold,
-                )
+            notifications = await self.database.get_notifications(guild.id)
+            for notification in notifications:
+                channel_ids = await self.database.get_voice_channel_ids(notification.id)
+                for channel_id in channel_ids:
+                    channel = guild.get_channel(channel_id)
+                    if not isinstance(channel, discord.VoiceChannel):
+                        continue
+                    count = await counted_human_count(channel, self.database)
+                    await self.database.set_triggered(
+                        notification.id,
+                        channel.id,
+                        count >= notification.threshold,
+                    )
 
     async def evaluate_voice_channel(self, channel: discord.VoiceChannel) -> None:
-        excluded_user_ids = await self.database.get_excluded_user_ids(channel.guild.id)
-        count = human_count(channel, excluded_user_ids)
+        count = await counted_human_count(channel, self.database)
         watched = await self.database.get_notifications_for_voice_channel(
             channel.guild.id,
             channel.id,
         )
 
-        for notification, triggered in watched:
-            if count == 0:
-                if triggered:
-                    await self.database.set_triggered(
+        for notification, triggered, message_id in watched:
+            if triggered:
+                if count == 0:
+                    if message_id is not None:
+                        await self.edit_notification_message(
+                            notification,
+                            channel,
+                            count,
+                            message_id,
+                            ended=True,
+                        )
+                    await self.database.clear_trigger_state(
                         notification.id,
                         channel.id,
-                        False,
+                    )
+                    continue
+
+                if message_id is not None:
+                    await self.edit_notification_message(
+                        notification,
+                        channel,
+                        count,
+                        message_id,
+                        ended=False,
                     )
                 continue
 
-            if triggered or count < notification.threshold:
+            if count < notification.threshold:
                 continue
 
-            # Mark it first so duplicate gateway events cannot produce duplicate pings.
             await self.database.set_triggered(
                 notification.id,
                 channel.id,
                 True,
             )
-            await self.send_notification(notification, channel, count)
+            sent_message = await self.send_notification(
+                notification,
+                channel,
+                count,
+            )
+            if sent_message is not None:
+                await self.database.set_message_id(
+                    notification.id,
+                    channel.id,
+                    sent_message.id,
+                )
+
+    def render_notification_message(
+        self,
+        notification: Notification,
+        voice_channel: discord.VoiceChannel,
+        count: int,
+        *,
+        ended: bool,
+    ) -> str:
+        role = voice_channel.guild.get_role(notification.role_id)
+        role_mention = role.mention if role is not None else f"<@&{notification.role_id}>"
+        template = (
+            notification.ended_message_template
+            if ended
+            else notification.message_template
+        )
+
+        try:
+            return template.format(
+                role=role_mention,
+                channel=voice_channel.mention,
+                channel_name=voice_channel.name,
+                count=count,
+                threshold=notification.threshold,
+            )
+        except (KeyError, ValueError):
+            logger.exception(
+                "Invalid message template for notification %s",
+                notification.id,
+            )
+            fallback = DEFAULT_ENDED_MESSAGE if ended else DEFAULT_MESSAGE
+            return fallback.format(
+                role=role_mention,
+                channel=voice_channel.mention,
+                channel_name=voice_channel.name,
+                count=count,
+                threshold=notification.threshold,
+            )
 
     async def send_notification(
         self,
         notification: Notification,
         voice_channel: discord.VoiceChannel,
         count: int,
-    ) -> None:
+    ) -> discord.Message | None:
         guild = voice_channel.guild
         role = guild.get_role(notification.role_id)
         destination = guild.get_channel(notification.destination_channel_id)
@@ -1143,35 +1311,24 @@ class VoicelyRoleBot(commands.Bot):
                 notification.id,
                 notification.role_id,
             )
-            return
+            return None
         if not isinstance(destination, discord.TextChannel):
             logger.warning(
                 "Notification %s has missing/non-text destination %s.",
                 notification.id,
                 notification.destination_channel_id,
             )
-            return
+            return None
+
+        message = self.render_notification_message(
+            notification,
+            voice_channel,
+            count,
+            ended=False,
+        )
 
         try:
-            message = notification.message_template.format(
-                role=role.mention,
-                channel=voice_channel.mention,
-                channel_name=voice_channel.name,
-                count=count,
-                threshold=notification.threshold,
-            )
-        except (KeyError, ValueError):
-            logger.exception("Invalid message template for notification %s", notification.id)
-            message = DEFAULT_MESSAGE.format(
-                role=role.mention,
-                channel=voice_channel.mention,
-                channel_name=voice_channel.name,
-                count=count,
-                threshold=notification.threshold,
-            )
-
-        try:
-            await destination.send(
+            return await destination.send(
                 message,
                 allowed_mentions=discord.AllowedMentions(
                     everyone=False,
@@ -1188,6 +1345,51 @@ class VoicelyRoleBot(commands.Bot):
             )
         except discord.HTTPException:
             logger.exception("Failed to send notification %s", notification.id)
+        return None
+
+    async def edit_notification_message(
+        self,
+        notification: Notification,
+        voice_channel: discord.VoiceChannel,
+        count: int,
+        message_id: int,
+        *,
+        ended: bool,
+    ) -> None:
+        destination = voice_channel.guild.get_channel(
+            notification.destination_channel_id
+        )
+        if not isinstance(destination, discord.TextChannel):
+            return
+
+        try:
+            message = await destination.fetch_message(message_id)
+            await message.edit(
+                content=self.render_notification_message(
+                    notification,
+                    voice_channel,
+                    count,
+                    ended=ended,
+                ),
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+        except discord.NotFound:
+            logger.warning(
+                "The message for notification %s in voice channel %s was deleted.",
+                notification.id,
+                voice_channel.id,
+            )
+        except discord.Forbidden:
+            logger.warning(
+                "Cannot edit notification %s in channel %s.",
+                notification.id,
+                destination.id,
+            )
+        except discord.HTTPException:
+            logger.exception(
+                "Failed to edit notification %s.",
+                notification.id,
+            )
 
 
 class VoicelyRoleCommands(commands.Cog):
@@ -1300,7 +1502,9 @@ class VoicelyRoleCommands(commands.Cog):
                 f"**Role:** <@&{notification.role_id}>\n"
                 f"**Sends in:** <#{notification.destination_channel_id}>\n"
                 f"**Voice channels:** {voice_channels}\n"
-                f"**Message:** {discord.utils.escape_markdown(notification.message_template)}"
+                f"**Active message:** {discord.utils.escape_markdown(notification.message_template)}\n"
+                f"**Everyone-left message:** "
+                f"{discord.utils.escape_markdown(notification.ended_message_template)}"
             )
 
             if field_count == 25 or len(current) + len(value) > 5500:
@@ -1320,7 +1524,7 @@ class VoicelyRoleCommands(commands.Cog):
 
     @group.command(
         name="edit-message",
-        description="Change a saved notification's custom message.",
+        description="Change a saved notification's active and everyone-left messages.",
     )
     async def edit_message(self, interaction: discord.Interaction) -> None:
         if not await self.require_manager(interaction):
@@ -1341,16 +1545,16 @@ class VoicelyRoleCommands(commands.Cog):
             notifications,
         )
         await interaction.response.send_message(
-            "Select the notification whose message you want to edit.",
+            "Select the notification whose messages you want to edit.",
             view=view,
             ephemeral=True,
         )
 
     @group.command(
         name="exclude-user",
-        description="Exclude a user from voice-channel threshold counts.",
+        description="Exclude a user from all voice-channel counts.",
     )
-    @app_commands.describe(user="Mention the user who should not be counted")
+    @app_commands.describe(user="The user to exclude from threshold counts")
     async def exclude_user(
         self,
         interaction: discord.Interaction,
@@ -1360,24 +1564,28 @@ class VoicelyRoleCommands(commands.Cog):
             return
         assert interaction.guild is not None
 
-        added = await self.database.add_excluded_user(interaction.guild.id, user.id)
-        await self.bot.reconcile_guild_trigger_states(interaction.guild)
-        message = (
-            f"✅ {user.mention} will no longer count toward voice-channel thresholds."
-            if added
-            else f"{user.mention} is already excluded from threshold counts."
-        )
+        added = await self.database.exclude_user(interaction.guild.id, user.id)
         await interaction.response.send_message(
-            message,
+            (
+                f"✅ {user.mention} is now excluded from Voicely Role counts."
+                if added
+                else f"{user.mention} was already excluded."
+            ),
             ephemeral=True,
             allowed_mentions=discord.AllowedMentions.none(),
         )
 
+        if user.voice is not None and isinstance(
+            user.voice.channel,
+            discord.VoiceChannel,
+        ):
+            await self.bot.evaluate_voice_channel(user.voice.channel)
+
     @group.command(
         name="include-user",
-        description="Allow an excluded user to count toward thresholds again.",
+        description="Include a previously excluded user in counts again.",
     )
-    @app_commands.describe(user="Mention the user who should be counted again")
+    @app_commands.describe(user="The excluded user to count again")
     async def include_user(
         self,
         interaction: discord.Interaction,
@@ -1387,22 +1595,26 @@ class VoicelyRoleCommands(commands.Cog):
             return
         assert interaction.guild is not None
 
-        removed = await self.database.remove_excluded_user(interaction.guild.id, user.id)
-        await self.bot.reconcile_guild_trigger_states(interaction.guild)
-        message = (
-            f"✅ {user.mention} will count toward voice-channel thresholds again."
-            if removed
-            else f"{user.mention} was not excluded from threshold counts."
-        )
+        removed = await self.database.include_user(interaction.guild.id, user.id)
         await interaction.response.send_message(
-            message,
+            (
+                f"✅ {user.mention} will now count toward thresholds."
+                if removed
+                else f"{user.mention} was not excluded."
+            ),
             ephemeral=True,
             allowed_mentions=discord.AllowedMentions.none(),
         )
 
+        if user.voice is not None and isinstance(
+            user.voice.channel,
+            discord.VoiceChannel,
+        ):
+            await self.bot.evaluate_voice_channel(user.voice.channel)
+
     @group.command(
         name="excluded-users",
-        description="List users excluded from voice-channel threshold counts.",
+        description="List users excluded from voice-channel counts.",
     )
     async def excluded_users(self, interaction: discord.Interaction) -> None:
         if not await self.require_manager(interaction):
@@ -1412,14 +1624,14 @@ class VoicelyRoleCommands(commands.Cog):
         user_ids = await self.database.get_excluded_user_ids(interaction.guild.id)
         if not user_ids:
             await interaction.response.send_message(
-                "No users are currently excluded from threshold counts.",
+                "This server has no excluded users.",
                 ephemeral=True,
             )
             return
 
-        mentions = ", ".join(f"<@{user_id}>" for user_id in sorted(user_ids))
+        mentions = "\n".join(f"• <@{user_id}>" for user_id in sorted(user_ids))
         await interaction.response.send_message(
-            f"**Users excluded from threshold counts:**\n{mentions}",
+            f"**Excluded users:**\n{mentions}",
             ephemeral=True,
             allowed_mentions=discord.AllowedMentions.none(),
         )
@@ -1482,15 +1694,15 @@ def find_unknown_placeholders(template: str) -> set[str]:
     return unknown
 
 
-def human_count(
+async def counted_human_count(
     channel: discord.VoiceChannel,
-    excluded_user_ids: set[int] | None = None,
+    database: Database,
 ) -> int:
-    excluded = excluded_user_ids or set()
+    excluded_user_ids = await database.get_excluded_user_ids(channel.guild.id)
     return sum(
         1
         for member in channel.members
-        if not member.bot and member.id not in excluded
+        if not member.bot and member.id not in excluded_user_ids
     )
 
 
