@@ -20,9 +20,11 @@ For example, when two people join your gaming voice channel, the bot can notify 
 
 - 🎙️ Watch one or many voice channels.
 - 🔔 Ping any role when a configurable number of people join.
+- ✏️ Automatically update the notification with the current number of people as they join and leave.
+- 💤 Automatically edit the notification again once everyone has left the voice channel.
 - 📈 Encourage community activity by letting members know when conversations are already happening.
 - 🎯 Create multiple notifications for the same voice channel with different thresholds.
-- 💬 Customize the notification message with placeholders.
+- 💬 Customize both the active notification message and the "everyone left" message.
 - 🚫 Exclude bots, alt accounts, or specific users from counts.
 - 🔒 Delegate management to selected admin roles without giving full Administrator permissions.
 
@@ -32,7 +34,7 @@ Example notifications:
 - 4 people → `@Gaming`
 - 8 people → `@Large Group`
 
-Each notification is tracked independently and won't trigger again until the voice channel becomes empty.
+Each notification is tracked independently and won't trigger again until the counted users have completely left the voice channel.
 
 ---
 
@@ -41,12 +43,13 @@ Each notification is tracked independently and won't trigger again until the voi
 1. Invite Voicely Role to your server.
 2. Run `/voicely-role add`.
 3. Choose:
-    - The voice channel to watch.
+    - The voice channel(s) to watch.
     - The role to ping.
     - The text channel where notifications should be sent.
     - The number of people required before sending the notification.
     - (Optional) A custom notification message.
-4. That's it! The bot will automatically watch the voice channel and notify your community whenever enough people have gathered.
+    - (Optional) A custom message to display once everyone has left.
+4. That's it! The bot will automatically watch the voice channels, update the notification as people join and leave, and notify your community whenever enough people have gathered.
 
 ---
 
@@ -57,7 +60,7 @@ Each notification is tracked independently and won't trigger again until the voi
 | `/voicely-role add` | Create a new notification. |
 | `/voicely-role remove` | Remove a notification. |
 | `/voicely-role list` | View all configured notifications. |
-| `/voicely-role edit-message` | Change a notification's custom message. |
+| `/voicely-role edit-message` | Change a notification's messages. |
 | `/voicely-role exclude-user` | Exclude a user from all counts. |
 | `/voicely-role include-user` | Include an excluded user again. |
 | `/voicely-role excluded-users` | View all excluded users. |
@@ -69,7 +72,10 @@ Discord Administrators always have access to these commands.
 
 # Custom Messages
 
-You can personalize notification messages using placeholders.
+Each notification has two customizable messages:
+
+- **Active notification** (shown while people are in the voice channel)
+- **Everyone left** (shown after the counted users have all left)
 
 Available placeholders:
 
@@ -79,10 +85,16 @@ Available placeholders:
 - `{count}` — Current counted users
 - `{threshold}` — Configured threshold
 
-Default message:
+Default active message:
 
 ```text
 🔊 {role} There are now **{count} people** in {channel}!
+```
+
+Default "everyone left" message:
+
+```text
+🔇 Everyone has left {channel}.
 ```
 
 Example custom message:
@@ -90,6 +102,8 @@ Example custom message:
 ```text
 🎮 {role} A game is starting in {channel}! Join now while everyone's gathering!
 ```
+
+The role is only mentioned when the notification is first sent. Updating the message as people join or leave will not ping the role again.
 
 ---
 
@@ -104,7 +118,7 @@ This is useful for:
 - AFK accounts
 - Moderators who shouldn't affect thresholds
 
-If only excluded users remain in a voice channel, the notification automatically resets so it can trigger again when real users join.
+If only excluded users remain in a voice channel, the notification automatically resets so it can trigger again when counted users join.
 
 ---
 
