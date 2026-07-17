@@ -106,18 +106,6 @@ If only excluded users remain in a voice channel, the notification automatically
 
 ---
 
-# Restart Behavior
-
-If the bot restarts:
-
-- Empty watched channels are ready to trigger immediately.
-- Occupied channels below their threshold remain ready.
-- Channels already meeting or exceeding their threshold are remembered without sending duplicate notifications.
-
-Settings are automatically saved in `voicely-role.db`.
-
----
-
 # Invite
 
 Ready to encourage more activity in your server?
