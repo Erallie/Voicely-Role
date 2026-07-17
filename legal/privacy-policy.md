@@ -1,4 +1,4 @@
-# Voicely Role Privacy Policy
+# Privacy Policy
 
 **Last Updated:** July 17, 2026
 

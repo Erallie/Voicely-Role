@@ -1,4 +1,4 @@
-# Voicely Role Terms of Service
+# Terms of Service
 
 **Last Updated:** July 17, 2026
 
