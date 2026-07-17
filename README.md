@@ -1,79 +1,82 @@
+[![Invite Me](https://img.shields.io/badge/Invite%20Me-7965c7?style=for-the-badge)](https://discord.com/oauth2/authorize?client_id=1527731147428073493)
+[![Privacy Policy](https://img.shields.io/badge/Privacy%20Policy-cc7a7c?style=for-the-badge)](https://github.com/Erallie/Voicely-Role/blob/main/legal/privacy-policy.md)
+<br>
+[![Our Discord](https://img.shields.io/discord/1102582171207741480?style=for-the-badge&logo=discord&logoColor=ffffff&label=Our%20Discord&color=5865F2)](https://discord.gozarproductions.com)
+[![Our Other Projects](https://img.shields.io/badge/Our%20Other%20Projects-%E2%9D%A4-563294?style=for-the-badge&logo=data%3Aimage%2Fwebp%3Bbase64%2CUklGRu4DAABXRUJQVlA4WAoAAAAQAAAAHwAAHwAAQUxQSGABAAABgFtbm5volyZTA%2BtibzK2H0w5sDkmhe3GmxrwxGg0839r%2FvkkOogIBW7bKB0c4%2BARYihzIqfd6dfO%2B%2B3XtHsq4jJhlIvcDRcgNB%2FeieQETorBHgghRtUYqwDs%2B4U4IpcvUB%2BVUPSK54uEnTwsUJoar2DeMpzLxQpeG5DH8lxyyfLivVYAwPBbkWdOBg3qFlqiLy679iHy9UDKMZRXmYxpCcusayTHG01K%2FEtatYWuj7oI9hL4BxsxVwhoP2mlAJJ%2BuuAflc6%2BEUCQTCX9EV87xBR2H75NxLZSpWiwzqdIm7ZO7uB3oEgZKbD9Nt3EmHweEPH1t1GNsZUbKeisiwjyTm5fA3SO1yCrADZXrV2PZQJPL1tjN4%2BxUL9ie1mJobzOnDwSx6ILiF%2FW%2BTUR4tcHx0UaV75JXC1a4g6Ky5dLcTSuy9q4HhTieF64Hy1A3GHB8gLLK2e92feuqnbfPK8IVlA4IGgCAACwDQCdASogACAAPk0cjEQioaEb%2BqwAKATEtgBOl7v9V3sHcA2wG4A3gD0APLP9jX9n%2F2jmqv5AZRh7J%2BN2fOx22iE%2F4TUsecFmY%2BSf1r%2BAP%2BTfzT%2FXdIB7KX7MtdIGr1A8H0jmrrfZvqButwOaYcLWYNRq5QgAAP7%2F%2FmIMpiVNn67QXpM1rrDmRS8Nr%2F6dhD%2Bq5e%2BM%2BAtUP1%2FxOj85Ol5y3ebjz%2BpHoOf%2FWW8a%2F2ojUaKVDkVqof%2Bv4f0f6ud8i58wusz%2Fyrj%2F%2BwnM3q0769dvK%2F%2BQe04xL49tkb9t6ylCqqezZtZGuGLJ%2F5iUrPqdYc%2F8VbYZfP%2FOpZP%2F4X4q%2BqS4gPOxzdINOe5PGv%2F0TS%2FJRf4LlFrFkrWtxlS8n40grV%2BKUu%2FiwzdQzImvwH81FxL1bZyTSsrYwMku1Pk9StTtWNjSR8ZWEYBH9eTn%2FvBERii5XaWOPJ%2FFVXtVQGbv%2BFRW5jbo9tfFDu%2BDHHf8LbgUd%2F8W8Id1AehBtRNsLQWbADmvF1QJU8x5tw%2FtTUwIoSaa%2F2jkcvyVHkAsb2qoIh1KF1pPdae%2BZaqjydy6nUa9agjrDk1G4pMhEUhH%2BV%2FIUe49MjhR%2FuxyFmwQ8dDogMyQ%2BdcSBa56Lwt1wyJ%2F22%2F5O98r6q6wiM63HyaYONd36W7br%2F0%2F6y2DZ3irAddj%2FRxntvr%2FbbChSYXAfEbO%2FD0G%2FFbMFqTHypodt9T6dAx%2BUjJYfHzFf%2FM3Ec%2FAtwbjc2gka6urN1MlSLb2VTS9Q5r8fkDzxZz6vu1OYUPUB1UFMIhYGvMATbxxoTmVhvpovzAc%2F8nbOjw3wAAA)](https://github.com/Erallie)
+[![Donate](https://img.shields.io/badge/Donate-%24-563294?style=for-the-badge&logo=ko-fi&logoColor=FFFFFF&color=FF6433)](https://www.ko-fi.com/GozarProductions)
+
+---
+
 # Voicely Role
 
-Voicely Role watches selected Discord voice channels and pings a selected role when a configured number of counted, non-bot users is reached. Server managers can exclude specific users from all threshold counts.
+**Help your Discord server feel active.**
 
-Each notification/channel pair is independent. This allows several notifications on the same voice channel, such as:
+Voicely Role automatically pings a role whenever enough people have gathered in a voice channel, encouraging others to jump in and join the conversation. It's perfect for gaming communities, social servers, study groups, and any community that wants to turn "a few people are hanging out" into "everyone's joining."
 
-- 2 users: ping `@Casual Players`
-- 4 users: ping `@Gaming`
-- 8 users: ping `@Large Group`
+For example, when two people join your gaming voice channel, the bot can notify everyone with the **@Gaming** role that a group is forming.
 
-After a notification triggers for a voice channel, that notification will not trigger there again until the channel becomes completely empty.
+## Features
 
-## Commands
+- 🎙️ Watch one or many voice channels.
+- 🔔 Ping any role when a configurable number of people join.
+- 📈 Encourage community activity by letting members know when conversations are already happening.
+- 🎯 Create multiple notifications for the same voice channel with different thresholds.
+- 💬 Customize the notification message with placeholders.
+- 🚫 Exclude bots, alt accounts, or specific users from counts.
+- 🔒 Delegate management to selected admin roles without giving full Administrator permissions.
 
-- `/voicely-role add` — Create a notification with dropdowns and a details modal.
-- `/voicely-role remove` — Select and remove a saved notification.
-- `/voicely-role list` — List saved notifications.
-- `/voicely-role edit-message` — Change a notification's custom message.
-- `/voicely-role exclude-user user:@User` — Exclude a mentioned user from all threshold counts.
-- `/voicely-role include-user user:@User` — Make an excluded user count again.
-- `/voicely-role excluded-users` — List the server's excluded users.
-- `/voicely-role admin-roles` — Select roles allowed to manage notifications. Requires Discord Administrator permission.
+Example notifications:
 
-Discord Administrators can always manage notifications. The configured Voicely Role admin roles can also add, remove, list, and edit notifications and manage excluded users.
+- 2 people → `@Casual Players`
+- 4 people → `@Gaming`
+- 8 people → `@Large Group`
 
-## Excluded users
+Each notification is tracked independently and won't trigger again until the voice channel becomes empty.
 
-Excluded users are ignored for every notification in the server. For example, if a voice channel contains two regular users and one excluded user, its count is `2`.
+---
 
-An excluded user also does not keep a notification armed. If all counted users leave and only excluded users remain, the effective count is zero and notifications for that channel re-arm. Use the slash command's `user` field to type or paste an `@mention`.
+# Getting Started
 
-## Setup
+1. Invite Voicely Role to your server.
+2. Run `/voicely-role add`.
+3. Choose:
+    - The voice channel to watch.
+    - The role to ping.
+    - The text channel where notifications should be sent.
+    - The number of people required before sending the notification.
+    - (Optional) A custom notification message.
+4. That's it! The bot will automatically watch the voice channel and notify your community whenever enough people have gathered.
 
-1. Install Python 3.11 or newer.
-2. Create a Discord application and bot in the Discord Developer Portal.
-3. Under **Bot**, enable **Server Members Intent**. Voice State intent is non-privileged and is requested by the code.
-4. Invite the bot with these scopes:
-   - `bot`
-   - `applications.commands`
-5. Give the bot these server/channel permissions:
-   - View Channels
-   - Send Messages
-   - Embed Links
-   - Mention Everyone (needed to reliably mention roles that are not configured as mentionable)
-6. Copy `.env.example` to `.env`, then enter the bot token.
-7. Install dependencies and run the bot:
+---
 
-```bash
-python -m venv .venv
-```
+# Commands
 
-Windows:
+| Command | Description |
+| --- | --- |
+| `/voicely-role add` | Create a new notification. |
+| `/voicely-role remove` | Remove a notification. |
+| `/voicely-role list` | View all configured notifications. |
+| `/voicely-role edit-message` | Change a notification's custom message. |
+| `/voicely-role exclude-user` | Exclude a user from all counts. |
+| `/voicely-role include-user` | Include an excluded user again. |
+| `/voicely-role excluded-users` | View all excluded users. |
+| `/voicely-role admin-roles` | Choose which roles can manage Voicely Role. |
 
-```bat
-.venv\Scripts\activate
-pip install -r requirements.txt
-python bot.py
-```
+Discord Administrators always have access to these commands.
 
-macOS/Linux:
+---
 
-```bash
-source .venv/bin/activate
-pip install -r requirements.txt
-python bot.py
-```
+# Custom Messages
 
-## Message placeholders
+You can personalize notification messages using placeholders.
 
-Custom messages support:
+Available placeholders:
 
-- `{role}` — role mention
-- `{channel}` — voice channel mention
-- `{channel_name}` — voice channel name without a mention
-- `{count}` — current number of counted, non-bot users
-- `{threshold}` — configured threshold
+- `{role}` — Mentioned role
+- `{channel}` — Voice channel mention
+- `{channel_name}` — Voice channel name
+- `{count}` — Current counted users
+- `{threshold}` — Configured threshold
 
 Default message:
 
@@ -81,12 +84,33 @@ Default message:
 🔊 {role} There are now **{count} people** in {channel}!
 ```
 
-## Restart behavior
+Example custom message:
 
-When the bot starts:
+```text
+🎮 {role} A game is starting in {channel}! Join now while everyone's gathering!
+```
 
-- Empty watched channels are re-armed.
-- Occupied channels below a notification's threshold remain armed and can trigger when the threshold is reached.
-- Occupied channels already at or above the threshold are marked as triggered without sending a startup ping.
+---
 
-Settings are stored in `voicely-role.db`.
+# Excluded Users
+
+Excluded users are ignored when counting people in voice channels.
+
+This is useful for:
+
+- Alt accounts
+- Music bots
+- AFK accounts
+- Moderators who shouldn't affect thresholds
+
+If only excluded users remain in a voice channel, the notification automatically resets so it can trigger again when real users join.
+
+---
+
+# Invite
+
+Ready to encourage more activity in your server?
+
+**Invite Voicely Role** using the invite link below:
+
+https://discord.com/oauth2/authorize?client_id=1527731147428073493
