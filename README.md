@@ -23,47 +23,9 @@ After a notification triggers for a voice channel, that notification will not tr
 
 Discord Administrators can always manage notifications. The configured Voicely Role admin roles can also add, remove, list, and edit notifications and manage excluded users.
 
-## Excluded users
+## Invite
 
-Excluded users are ignored for every notification in the server. For example, if a voice channel contains two regular users and one excluded user, its count is `2`.
-
-An excluded user also does not keep a notification armed. If all counted users leave and only excluded users remain, the effective count is zero and notifications for that channel re-arm. Use the slash command's `user` field to type or paste an `@mention`.
-
-## Setup
-
-1. Install Python 3.11 or newer.
-2. Create a Discord application and bot in the Discord Developer Portal.
-3. Under **Bot**, enable **Server Members Intent**. Voice State intent is non-privileged and is requested by the code.
-4. Invite the bot with these scopes:
-   - `bot`
-   - `applications.commands`
-5. Give the bot these server/channel permissions:
-   - View Channels
-   - Send Messages
-   - Embed Links
-   - Mention Everyone (needed to reliably mention roles that are not configured as mentionable)
-6. Copy `.env.example` to `.env`, then enter the bot token.
-7. Install dependencies and run the bot:
-
-```bash
-python -m venv .venv
-```
-
-Windows:
-
-```bat
-.venv\Scripts\activate
-pip install -r requirements.txt
-python bot.py
-```
-
-macOS/Linux:
-
-```bash
-source .venv/bin/activate
-pip install -r requirements.txt
-python bot.py
-```
+Invite Voicely Role to your server using [this invite link](https://discord.com/oauth2/authorize?client_id=1527731147428073493)!
 
 ## Message placeholders
 
@@ -80,6 +42,12 @@ Default message:
 ```text
 🔊 {role} There are now **{count} people** in {channel}!
 ```
+
+## Excluded users
+
+Excluded users are ignored for every notification in the server. For example, if a voice channel contains two regular users and one excluded user, its count is `2`. This is useful if you have alt accounts that you use the join voice channels.
+
+An excluded user also does not keep a notification armed. If all counted users leave and only excluded users remain, the effective count is zero and notifications for that channel re-arm. Use the slash command's `user` field to type or paste an `@mention`.
 
 ## Restart behavior
 
