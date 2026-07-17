@@ -56,4 +56,5 @@ Continued use of the Bot after changes become effective constitutes acceptance o
 Questions regarding these Terms of Service may be directed to Gozar Productions LLC through the official support server or our email:
 
 Official support server: https://discord.gozarproductions.com
+
 Email: contact@gozarproductions.com
