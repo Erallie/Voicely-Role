@@ -76,4 +76,7 @@ This Privacy Policy may be updated from time to time. Continued use of the Bot a
 
 ## Contact
 
-For questions regarding this Privacy Policy, please contact Gozar Productions LLC through the official support server or website.
+For questions regarding this Privacy Policy, please contact Gozar Productions LLC through the official support server or our email:
+
+Official support server: https://discord.gozarproductions.com
+Email: contact@gozarproductions.com
