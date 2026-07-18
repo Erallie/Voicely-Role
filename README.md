@@ -25,7 +25,7 @@ For example, when two people join your gaming voice channel, the bot can notify 
 - 📈 Encourage community activity by letting members know when conversations are already happening.
 - 🎯 Create multiple notifications for the same voice channel with different thresholds.
 - 💬 Customize both the active notification message and the "everyone left" message.
-- 🚫 Exclude bots, alt accounts, or specific users from counts.
+- 🚫 Exclude alt accounts or specific users from counts.
 - 🔒 Delegate management to selected admin roles without giving full Administrator permissions.
 
 Example notifications:
