@@ -1679,10 +1679,6 @@ class VoicelyRoleCommands(commands.Cog):
             )
             return
         raise error
-    
-    async def cog_load(self) -> None:
-        for command in self.walk_app_commands():
-            self.bot.tree.add_command(command)
 
 
 ALLOWED_PLACEHOLDERS = {
