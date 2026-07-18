@@ -103,12 +103,11 @@ The role is only mentioned when the notification is first sent. Updating the mes
 
 # Excluded Users
 
-Excluded users are ignored when counting people in voice channels.
+Excluded users are ignored when counting people in voice channels. Bots are automatically excluded.
 
 This is useful for:
 
 - Alt accounts
-- Music bots
 - AFK accounts
 - Moderators who shouldn't affect thresholds
 
