@@ -1438,6 +1438,7 @@ class VoicelyRoleCommands(commands.Cog):
         return False
 
     @app_commands.command(name="add", description="Create a voice-channel role notification.")
+    @app_commands.guild_only()
     async def add(self, interaction: discord.Interaction) -> None:
         if not await self.require_manager(interaction):
             return
@@ -1454,6 +1455,7 @@ class VoicelyRoleCommands(commands.Cog):
         )
 
     @app_commands.command(name="remove", description="Remove a saved notification.")
+    @app_commands.guild_only()
     async def remove(self, interaction: discord.Interaction) -> None:
         if not await self.require_manager(interaction):
             return
@@ -1479,6 +1481,7 @@ class VoicelyRoleCommands(commands.Cog):
         )
 
     @app_commands.command(name="list", description="List this server's notifications.")
+    @app_commands.guild_only()
     async def list_notifications(self, interaction: discord.Interaction) -> None:
         if not await self.require_manager(interaction):
             return
@@ -1527,6 +1530,7 @@ class VoicelyRoleCommands(commands.Cog):
         name="edit-message",
         description="Change a saved notification's active and everyone-left messages.",
     )
+    @app_commands.guild_only()
     async def edit_message(self, interaction: discord.Interaction) -> None:
         if not await self.require_manager(interaction):
             return
@@ -1556,6 +1560,7 @@ class VoicelyRoleCommands(commands.Cog):
         description="Exclude a user from all voice-channel counts.",
     )
     @app_commands.describe(user="The user to exclude from threshold counts")
+    @app_commands.guild_only()
     async def exclude_user(
         self,
         interaction: discord.Interaction,
@@ -1587,6 +1592,7 @@ class VoicelyRoleCommands(commands.Cog):
         description="Include a previously excluded user in counts again.",
     )
     @app_commands.describe(user="The excluded user to count again")
+    @app_commands.guild_only()
     async def include_user(
         self,
         interaction: discord.Interaction,
@@ -1617,6 +1623,7 @@ class VoicelyRoleCommands(commands.Cog):
         name="excluded-users",
         description="List users excluded from voice-channel counts.",
     )
+    @app_commands.guild_only()
     async def excluded_users(self, interaction: discord.Interaction) -> None:
         if not await self.require_manager(interaction):
             return
@@ -1642,6 +1649,7 @@ class VoicelyRoleCommands(commands.Cog):
         description="Choose roles allowed to manage Voicely Role.",
     )
     @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.guild_only()
     async def admin_roles(self, interaction: discord.Interaction) -> None:
         assert interaction.guild is not None
         current_ids = await self.database.get_admin_role_ids(interaction.guild.id)
