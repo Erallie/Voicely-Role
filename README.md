@@ -36,8 +36,6 @@ Example notifications:
 
 Each notification is tracked independently and won't trigger again until the counted users have completely left the voice channel.
 
----
-
 # Getting Started
 
 1. Invite Voicely Role to your server.
@@ -50,8 +48,6 @@ Each notification is tracked independently and won't trigger again until the cou
     - (Optional) A custom notification message.
     - (Optional) A custom message to display once everyone has left.
 4. That's it! The bot will automatically watch the voice channels, update the notification as people join and leave, and notify your community whenever enough people have gathered.
-
----
 
 # Commands
 
@@ -67,8 +63,6 @@ Each notification is tracked independently and won't trigger again until the cou
 | `/admin-roles` | Choose which roles can manage Voicely Role. |
 
 Discord Administrators always have access to these commands.
-
----
 
 # Custom Messages
 
@@ -105,8 +99,6 @@ Example custom message:
 
 The role is only mentioned when the notification is first sent. Updating the message as people join or leave will not ping the role again.
 
----
-
 # Excluded Users
 
 Excluded users are ignored when counting people in voice channels.
@@ -120,12 +112,6 @@ This is useful for:
 
 If only excluded users remain in a voice channel, the notification automatically resets so it can trigger again when counted users join.
 
----
+# Support
 
-# Invite
-
-Ready to encourage more activity in your server?
-
-**Invite Voicely Role** using the invite link below:
-
-https://discord.com/oauth2/authorize?client_id=1527731147428073493
+If you have any problems with the bot or want to request a feature, please create an [issue](https://github.com/Erallie/voicely-role/issues), and I will try to get to it as soon as I can!
