@@ -677,7 +677,7 @@ class AddNotificationView(RestrictedView):
                 if self.role_id == self.guild.default_role.id
                 else discord.ButtonStyle.secondary
             ),
-            row=4,
+            row=3,
         )
         everyone_button.callback = self.select_everyone
         self.add_item(everyone_button)
@@ -690,7 +690,7 @@ class AddNotificationView(RestrictedView):
                 if self.send_in_sidechat
                 else discord.ButtonStyle.secondary
             ),
-            row=4,
+            row=3,
         )
         sidechat_button.callback = self.toggle_sidechat
         self.add_item(sidechat_button)
