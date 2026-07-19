@@ -35,6 +35,7 @@ class Notification:
     threshold: int
     role_id: int
     destination_channel_id: int
+    send_in_sidechat: bool
     message_template: str
     ended_message_template: str
 
@@ -58,6 +59,7 @@ class Database:
                     threshold INTEGER NOT NULL CHECK (threshold >= 1),
                     role_id INTEGER NOT NULL,
                     destination_channel_id INTEGER NOT NULL,
+                    send_in_sidechat INTEGER NOT NULL DEFAULT 0,
                     message_template TEXT NOT NULL,
                     ended_message_template TEXT NOT NULL DEFAULT '🔇 Everyone has left {channel}.'
                 );
@@ -111,6 +113,12 @@ class Database:
                     "PRAGMA table_info(notifications)"
                 ).fetchall()
             }
+            if "send_in_sidechat" not in notification_columns:
+                self.connection.execute(
+                    "ALTER TABLE notifications "
+                    "ADD COLUMN send_in_sidechat INTEGER NOT NULL DEFAULT 0"
+                )
+
             if "ended_message_template" not in notification_columns:
                 self.connection.execute(
                     """
@@ -140,6 +148,7 @@ class Database:
         threshold: int,
         role_id: int,
         destination_channel_id: int,
+        send_in_sidechat: bool,
         message_template: str,
         ended_message_template: str,
         voice_channel_ids: Iterable[int],
@@ -154,9 +163,10 @@ class Database:
                     threshold,
                     role_id,
                     destination_channel_id,
+                    send_in_sidechat,
                     message_template,
                     ended_message_template
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     guild_id,
@@ -164,6 +174,7 @@ class Database:
                     threshold,
                     role_id,
                     destination_channel_id,
+                    send_in_sidechat,
                     message_template,
                     ended_message_template,
                 ),
@@ -440,6 +451,7 @@ class Database:
             threshold=int(row["threshold"]),
             role_id=int(row["role_id"]),
             destination_channel_id=int(row["destination_channel_id"]),
+            send_in_sidechat=bool(row["send_in_sidechat"]),
             message_template=str(row["message_template"]),
             ended_message_template=str(row["ended_message_template"]),
         )
@@ -627,6 +639,7 @@ class AddNotificationView(RestrictedView):
         self.voice_channel_ids: list[int] = []
         self.role_id: int | None = None
         self.destination_channel_id: int | None = None
+        self.send_in_sidechat = False
         self.name_value = ""
         self.threshold_value: int | None = None
         self.message_value = DEFAULT_MESSAGE
@@ -653,7 +666,7 @@ class AddNotificationView(RestrictedView):
         self.clear_items()
         self.add_item(VoiceChannelPicker(self))
         self.add_item(RolePicker(self))
-        if self.accessible_text_channels:
+        if self.accessible_text_channels and not self.send_in_sidechat:
             self.add_item(DestinationChannelPicker(self))
 
         everyone_button = discord.ui.Button(
@@ -668,6 +681,19 @@ class AddNotificationView(RestrictedView):
         )
         everyone_button.callback = self.select_everyone
         self.add_item(everyone_button)
+
+        sidechat_button = discord.ui.Button(
+            label="Send in Sidechat",
+            emoji="💬",
+            style=(
+                discord.ButtonStyle.success
+                if self.send_in_sidechat
+                else discord.ButtonStyle.secondary
+            ),
+            row=4,
+        )
+        sidechat_button.callback = self.toggle_sidechat
+        self.add_item(sidechat_button)
 
         if self.destination_page_count > 1:
             previous = discord.ui.Button(
@@ -717,6 +743,11 @@ class AddNotificationView(RestrictedView):
         self.rebuild_items()
         await interaction.response.edit_message(content=self.summary(), view=self)
 
+    async def toggle_sidechat(self, interaction: discord.Interaction) -> None:
+        self.send_in_sidechat = not self.send_in_sidechat
+        self.rebuild_items()
+        await interaction.response.edit_message(content=self.summary(), view=self)
+
     async def previous_destination_page(self, interaction: discord.Interaction) -> None:
         self.destination_page -= 1
         self.rebuild_items()
@@ -740,9 +771,13 @@ class AddNotificationView(RestrictedView):
         else:
             role = "*Not selected*"
         destination = (
-            f"<#{self.destination_channel_id}>"
-            if self.destination_channel_id
-            else "*Not selected*"
+            "The sidechat of each voice channel"
+            if self.send_in_sidechat
+            else (
+                f"<#{self.destination_channel_id}>"
+                if self.destination_channel_id
+                else "*Not selected*"
+            )
         )
         details = (
             f"**{discord.utils.escape_markdown(self.name_value)}** — "
@@ -756,7 +791,8 @@ class AddNotificationView(RestrictedView):
             f"**Role:** {role}\n"
             f"**Ping channel:** {destination}\n"
             f"**Details:** {details}\n\n"
-            "Select a role from the dropdown or press **📢 Ping @everyone**, "
+            "Select a role from the dropdown or press **📢 Ping @everyone**. "
+            "Choose a text channel or press **💬 Send in Sidechat**, "
             "enter the details, and then save."
             + (
                 "\n\n⚠️ I cannot currently send messages in any server text channel."
@@ -781,9 +817,10 @@ class AddNotificationView(RestrictedView):
                 ephemeral=True,
             )
             return
-        if self.destination_channel_id is None:
+        if not self.send_in_sidechat and self.destination_channel_id is None:
             await interaction.response.send_message(
-                "Select the text channel where the ping should be sent.",
+                "Select the text channel where the ping should be sent, "
+                "or enable **Send in Sidechat**.",
                 ephemeral=True,
             )
             return
@@ -794,13 +831,15 @@ class AddNotificationView(RestrictedView):
             )
             return
 
-        destination = self.guild.get_channel(self.destination_channel_id)
-        if not isinstance(destination, discord.TextChannel):
-            await interaction.response.send_message(
-                "The selected destination channel no longer exists.",
-                ephemeral=True,
-            )
-            return
+        destination: discord.abc.GuildChannel | None = None
+        if not self.send_in_sidechat:
+            destination = self.guild.get_channel(self.destination_channel_id)
+            if not isinstance(destination, discord.TextChannel):
+                await interaction.response.send_message(
+                    "The selected destination channel no longer exists.",
+                    ephemeral=True,
+                )
+                return
 
         bot_member = self.guild.me
         if bot_member is None:
@@ -810,28 +849,44 @@ class AddNotificationView(RestrictedView):
             )
             return
 
-        permissions = destination.permissions_for(bot_member)
-        if not permissions.view_channel or not permissions.send_messages:
-            await interaction.response.send_message(
-                "I no longer have permission to send messages in the selected channel.",
-                ephemeral=True,
-            )
-            return
+        channels_to_check: list[discord.abc.GuildChannel]
+        if self.send_in_sidechat:
+            channels_to_check = [
+                channel
+                for channel_id in self.voice_channel_ids
+                if isinstance(
+                    (channel := self.guild.get_channel(channel_id)),
+                    discord.VoiceChannel,
+                )
+            ]
+        else:
+            assert destination is not None
+            channels_to_check = [destination]
 
-        if self.role_id == self.guild.id and not permissions.mention_everyone:
-            await interaction.response.send_message(
-                "I need the **Mention @everyone, @here, and All Roles** permission "
-                "in the selected text channel before I can ping @everyone.",
-                ephemeral=True,
-            )
-            return
+        for channel_to_check in channels_to_check:
+            permissions = channel_to_check.permissions_for(bot_member)
+            if not permissions.view_channel or not permissions.send_messages:
+                await interaction.response.send_message(
+                    f"I do not have permission to send messages in {channel_to_check.mention}.",
+                    ephemeral=True,
+                )
+                return
+
+            if self.role_id == self.guild.id and not permissions.mention_everyone:
+                await interaction.response.send_message(
+                    "I need the **Mention @everyone, @here, and All Roles** permission "
+                    f"in {channel_to_check.mention} before I can ping @everyone.",
+                    ephemeral=True,
+                )
+                return
 
         notification_id = await self.database.create_notification(
             guild_id=self.guild.id,
             name=self.name_value,
             threshold=self.threshold_value,
             role_id=self.role_id,
-            destination_channel_id=self.destination_channel_id,
+            destination_channel_id=self.destination_channel_id or 0,
+            send_in_sidechat=self.send_in_sidechat,
             message_template=self.message_value,
             ended_message_template=self.ended_message_value,
             voice_channel_ids=self.voice_channel_ids,
@@ -1340,7 +1395,11 @@ class VoicelyRoleBot(commands.Bot):
     ) -> discord.Message | None:
         guild = voice_channel.guild
         role = guild.get_role(notification.role_id)
-        destination = guild.get_channel(notification.destination_channel_id)
+        destination = (
+            voice_channel
+            if notification.send_in_sidechat
+            else guild.get_channel(notification.destination_channel_id)
+        )
 
         if role is None:
             logger.warning(
@@ -1349,9 +1408,9 @@ class VoicelyRoleBot(commands.Bot):
                 notification.role_id,
             )
             return None
-        if not isinstance(destination, discord.TextChannel):
+        if not isinstance(destination, (discord.TextChannel, discord.VoiceChannel)):
             logger.warning(
-                "Notification %s has missing/non-text destination %s.",
+                "Notification %s has missing/invalid destination %s.",
                 notification.id,
                 notification.destination_channel_id,
             )
@@ -1395,10 +1454,12 @@ class VoicelyRoleBot(commands.Bot):
         *,
         ended: bool,
     ) -> None:
-        destination = voice_channel.guild.get_channel(
-            notification.destination_channel_id
+        destination = (
+            voice_channel
+            if notification.send_in_sidechat
+            else voice_channel.guild.get_channel(notification.destination_channel_id)
         )
-        if not isinstance(destination, discord.TextChannel):
+        if not isinstance(destination, (discord.TextChannel, discord.VoiceChannel)):
             return
 
         try:
@@ -1537,7 +1598,8 @@ class VoicelyRoleCommands(commands.Cog):
             value = (
                 f"**Threshold:** {notification.threshold}\n"
                 f"**Role:** <@&{notification.role_id}>\n"
-                f"**Sends in:** <#{notification.destination_channel_id}>\n"
+                f"**Sends in:** "
+                f"{'Voice channel sidechat' if notification.send_in_sidechat else f'<#{notification.destination_channel_id}>'}\n"
                 f"**Voice channels:** {voice_channels}\n"
                 f"**Active message:** {discord.utils.escape_markdown(notification.message_template)}\n"
                 f"**Everyone-left message:** "
