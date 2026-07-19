@@ -585,6 +585,7 @@ class RolePicker(discord.ui.RoleSelect):
     async def callback(self, interaction: discord.Interaction) -> None:
         role = self.values[0]
         self.setup_view.role_id = role.id
+        self.setup_view.previous_role_id = role.id
         self.setup_view.rebuild_items()
         await interaction.response.edit_message(
             content=self.setup_view.summary(),
@@ -638,6 +639,7 @@ class AddNotificationView(RestrictedView):
         self.database = database
         self.voice_channel_ids: list[int] = []
         self.role_id: int | None = None
+        self.previous_role_id: int | None = None
         self.destination_channel_id: int | None = None
         self.send_in_sidechat = False
         self.name_value = ""
@@ -739,9 +741,21 @@ class AddNotificationView(RestrictedView):
         self.add_item(cancel)
 
     async def select_everyone(self, interaction: discord.Interaction) -> None:
-        self.role_id = self.guild.default_role.id
+        everyone_role_id = self.guild.default_role.id
+
+        if self.role_id == everyone_role_id:
+            self.role_id = self.previous_role_id
+        else:
+            if self.role_id is not None:
+                self.previous_role_id = self.role_id
+
+            self.role_id = everyone_role_id
+
         self.rebuild_items()
-        await interaction.response.edit_message(content=self.summary(), view=self)
+        await interaction.response.edit_message(
+            content=self.summary(),
+            view=self,
+        )
 
     async def toggle_sidechat(self, interaction: discord.Interaction) -> None:
         self.send_in_sidechat = not self.send_in_sidechat
