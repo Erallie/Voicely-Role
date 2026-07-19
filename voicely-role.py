@@ -664,7 +664,7 @@ class AddNotificationView(RestrictedView):
                 if self.role_id == self.guild.default_role.id
                 else discord.ButtonStyle.secondary
             ),
-            row=3,
+            row=4,
         )
         everyone_button.callback = self.select_everyone
         self.add_item(everyone_button)
@@ -756,7 +756,8 @@ class AddNotificationView(RestrictedView):
             f"**Role:** {role}\n"
             f"**Ping channel:** {destination}\n"
             f"**Details:** {details}\n\n"
-            "Use the dropdowns to select a role (or press **📢 Ping @everyone** instead), enter the details, and then save."
+            "Select a role from the dropdown or press **📢 Ping @everyone**, "
+            "enter the details, and then save."
             + (
                 "\n\n⚠️ I cannot currently send messages in any server text channel."
                 if not self.accessible_text_channels
