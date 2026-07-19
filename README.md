@@ -88,19 +88,19 @@ Available placeholders:
 Default active message:
 
 ```text
-🔊 {role} There are now **{count} people** in {channel}!
+{role} There are now **{count} people** in {channel}!
 ```
 
 Default "everyone left" message:
 
 ```text
-🔇 Everyone has left {channel}.
+Everyone has left {channel}.
 ```
 
 Example custom message:
 
 ```text
-🎮 {role} A game is starting in {channel}! Join now while everyone's gathering!
+{role} A game is starting in {channel}! Join now while everyone's gathering!
 ```
 
 The role is only mentioned when the notification is first sent. Updating the message as people join or leave will not ping the role again.
