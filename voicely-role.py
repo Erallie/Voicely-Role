@@ -700,7 +700,7 @@ class AddNotificationView(RestrictedView):
         sidechat_button.callback = self.toggle_sidechat
         self.add_item(sidechat_button)
 
-        if self.destination_page_count > 1:
+        if not self.send_in_sidechat and self.destination_page_count > 1:
             previous = discord.ui.Button(
                 label="Previous text channels",
                 style=discord.ButtonStyle.secondary,
