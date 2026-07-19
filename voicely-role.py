@@ -563,7 +563,7 @@ class VoiceChannelPicker(discord.ui.ChannelSelect):
 class RolePicker(discord.ui.RoleSelect):
     def __init__(self, setup_view: AddNotificationView) -> None:
         super().__init__(
-            placeholder="Select the role to ping",
+            placeholder="Select a role or @everyone to ping",
             min_values=1,
             max_values=1,
             row=1,
@@ -572,12 +572,6 @@ class RolePicker(discord.ui.RoleSelect):
 
     async def callback(self, interaction: discord.Interaction) -> None:
         role = self.values[0]
-        if role.is_default():
-            await interaction.response.send_message(
-                "The @everyone role cannot be selected.",
-                ephemeral=True,
-            )
-            return
         self.setup_view.role_id = role.id
         await interaction.response.edit_message(
             content=self.setup_view.summary(),
@@ -795,6 +789,14 @@ class AddNotificationView(RestrictedView):
         if not permissions.view_channel or not permissions.send_messages:
             await interaction.response.send_message(
                 "I no longer have permission to send messages in the selected channel.",
+                ephemeral=True,
+            )
+            return
+
+        if self.role_id == self.guild.id and not permissions.mention_everyone:
+            await interaction.response.send_message(
+                "I need the **Mention @everyone, @here, and All Roles** permission "
+                "in the selected text channel before I can ping @everyone.",
                 ephemeral=True,
             )
             return
@@ -1272,7 +1274,11 @@ class VoicelyRoleBot(commands.Bot):
         ended: bool,
     ) -> str:
         role = voice_channel.guild.get_role(notification.role_id)
-        role_mention = role.mention if role is not None else f"<@&{notification.role_id}>"
+        role_mention = (
+            "@everyone"
+            if notification.role_id == voice_channel.guild.id
+            else role.mention if role is not None else f"<@&{notification.role_id}>"
+        )
         template = (
             notification.ended_message_template
             if ended
@@ -1333,13 +1339,15 @@ class VoicelyRoleBot(commands.Bot):
             ended=False,
         )
 
+        is_everyone = notification.role_id == guild.id
+
         try:
             return await destination.send(
                 message,
                 allowed_mentions=discord.AllowedMentions(
-                    everyone=False,
+                    everyone=is_everyone,
                     users=False,
-                    roles=[role],
+                    roles=[] if is_everyone else [role],
                     replied_user=False,
                 ),
             )
