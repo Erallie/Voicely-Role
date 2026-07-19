@@ -1648,6 +1648,7 @@ class VoicelyRoleCommands(commands.Cog):
         name="admin-roles",
         description="Choose roles allowed to manage Voicely Role.",
     )
+    @app_commands.default_permissions(administrator=True)
     @app_commands.checks.has_permissions(administrator=True)
     @app_commands.guild_only()
     async def admin_roles(self, interaction: discord.Interaction) -> None:
