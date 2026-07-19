@@ -28,7 +28,7 @@ You could prompt people to select the role in onboarding or your server roles ch
 - 🎯 Create multiple notifications for the same voice channel with different thresholds.
 - 💬 Customize both the active notification message and the "everyone left" message.
 - 🚫 Exclude alt accounts or specific users from counts.
-- 🔒 Delegate management to selected admin roles without giving full Administrator permissions.
+- 🔒 Assign admin roles to manage the bot.
 
 Example notifications:
 
