@@ -18,6 +18,8 @@ For example, when two people join your gaming voice channel, the bot can notify 
 
 You could prompt people to select the role in onboarding or your server roles channel for the best visibility.
 
+If you want something similar but that pings in private dm's, try [Voicely Ping](https://discord.com/oauth2/authorize?client_id=1290742648377966735) instead.
+
 ## Features
 
 - 🎙️ Watch one or many voice channels.
@@ -39,8 +41,6 @@ Example notifications:
 - 8 people → `@Large Group`
 
 Each notification is tracked independently and won't trigger again until the counted users have completely left the voice channel.
-
-If you want something similar but that pings in private dm's, try [Voicely Ping](https://discord.com/oauth2/authorize?client_id=1290742648377966735) instead.
 
 # Getting Started
 
